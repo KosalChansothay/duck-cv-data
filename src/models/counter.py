@@ -89,7 +89,7 @@ class DuckCounter:
                 orig_img,
                 boxes,
                 confidences,
-                count_text=f"🦆 Ducks Counted: {count}"
+                count_text=f" Ducks Counted: {count}"
             )
 
         return DuckCountResult(

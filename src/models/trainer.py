@@ -62,7 +62,7 @@ def train_duck_model(
             raise FileNotFoundError(f"Dataset config not found at: {data_path}")
 
     print(f"\n{'='*70}")
-    print(f"🦆 Starting Duck Counting Model Training")
+    print(f" Starting Duck Counting Model Training")
     print(f"Base Model:    {cfg['model']}")
     print(f"Dataset YAML:  {cfg['data']}")
     print(f"Epochs:        {cfg['epochs']}")

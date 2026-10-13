@@ -7,7 +7,7 @@ def create_train_count_notebook():
             "cell_type": "markdown",
             "metadata": {},
             "source": [
-                "# 🦆 Duck Counting: YOLO Model Training & Counting Pipeline\n",
+                "#  Duck Counting: YOLO Model Training & Counting Pipeline\n",
                 "\n",
                 "This notebook provides the complete end-to-end workflow to:\n",
                 "1. **Verify Dataset Integrity**: Validate YOLO bounding boxes and image-label pairs.\n",

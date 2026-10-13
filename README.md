@@ -1,4 +1,4 @@
-# 🦆 Automatic Duck Counting System for Smallholder Farms
+# Automatic Duck Counting System for Smallholder Farms
 ### *Digital Image Processing & Computer Vision for Cambodian Poultry Farming*
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -8,7 +8,7 @@
 
 ---
 
-## 🌾 Real-World Motivation: Empowering Smallholder Duck Farmers
+## Real-World Motivation: Empowering Smallholder Duck Farmers
 
 Duck farming is a cornerstone of household livelihoods and food security in rural Cambodia, especially in lowland poultry-producing provinces such as **Takeo, Kampong Cham**, and surrounding rural regions.
 
@@ -22,7 +22,7 @@ Develop an accessible, fast, and automated desktop counting tool that smallholde
 
 ---
 
-## 🎯 Bridging the Research Gap: Classical DIP vs. Modern YOLO
+## Bridging the Research Gap: Classical DIP vs. Modern YOLO
 
 In traditional automated animal counting, the main barrier preventing the adoption of Deep Learning (YOLO) was the **absence of a curated, labeled duck dataset** and the perception that deep learning required cloud GPUs. 
 
@@ -56,7 +56,7 @@ This repository **solves both challenges**:
 
 ---
 
-## 📊 Dataset Overview
+## Dataset Overview
 
 This project uses a targeted dataset built specifically for high-density duck counting under varied outdoor farm lighting (morning, midday, evening) over soil, grass, and pond water:
 
@@ -74,7 +74,7 @@ This project uses a targeted dataset built specifically for high-density duck co
 
 ---
 
-## 🗓️ 10-Week Implementation Roadmap
+## 10-Week Implementation Roadmap
 
 | Week | Phase | Activity & Focus | Deliverables |
 | :---: | :---: | :--- | :--- |
@@ -91,7 +91,7 @@ This project uses a targeted dataset built specifically for high-density duck co
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 duck/
@@ -140,7 +140,7 @@ duck/
 
 ---
 
-## ⚡ Quick Start
+## Quick Start
 
 ### 1. Environment Setup
 Using `uv` (recommended) or standard `pip`:
@@ -162,7 +162,7 @@ uv pip install -e .
 
 ---
 
-## 🚀 Running the System
+## Running the System
 
 ### 1. Verify Dataset Integrity
 Before training, verify that images and YOLO label files match:
@@ -209,7 +209,7 @@ python scripts/count.py --weights runs/train/duck_counter/weights/best.pt --sour
 
 ---
 
-## ☕ Java Desktop Application Integration (Offline Deployment)
+## Java Desktop Application Integration (Offline Deployment)
 
 To build a standalone **Java Desktop Application (Swing / JavaFX)** that smallholder farmers can run offline without Python:
 
@@ -253,7 +253,7 @@ public class DuckCounterApp {
 
 ---
 
-## 🔬 Classical DIP vs. YOLO Comparison
+## Classical DIP vs. YOLO Comparison
 
 ### Performance Comparison Matrix
 
@@ -266,7 +266,7 @@ public class DuckCounterApp {
 
 ---
 
-## 📚 References Cited
+## References Cited
 
 1. **Verykokou, S., & Ioannidis, C. (2023)**. An overview on image-based and scanner-based 3D modeling technologies. *Sensors*, 23(2), 596.
 2. **Chabot, D., & Francis, C. M. (2016)**. Computer-automated bird detection and counts in high-resolution aerial images: a review. *Journal of Field Ornithology*, 87(4), 343–359.
@@ -278,6 +278,6 @@ public class DuckCounterApp {
 
 ---
 
-## 🤝 Contributing & Support
+## Contributing & Support
 
 Contributions, issues, and feature requests are welcome! For questions or fine-tuning assistance, feel free to open an issue or submit a pull request.

@@ -42,7 +42,7 @@ def draw_duck_detections(
 
     # Banner header for duck count
     total_ducks = len(boxes)
-    banner_str = count_text if count_text else f"🦆 Ducks Counted: {total_ducks}"
+    banner_str = count_text if count_text else f" Ducks Counted: {total_ducks}"
     font = cv2.FONT_HERSHEY_DUPLEX
     scale = max(0.7, min(1.2, w / 900.0))
     thickness = 2

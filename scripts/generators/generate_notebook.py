@@ -301,7 +301,7 @@ def create_notebook():
             "\n",
             "The full Objects365 training set contains 1.7 million images across 51 patches (~345 GB).\n",
             "\n",
-            "### 🎯 Our Smart Quota Strategy\n",
+            "###  Our Smart Quota Strategy\n",
             "Instead of downloading all 51 training patches:\n",
             "1. We set `TARGET_TRAIN_DUCKS = 5000` (quota of 5,000 duck images).\n",
             "2. We unpack `zhiyuan_objv2_train.tar.gz` (~1.33 GB) and find all training duck images.\n",

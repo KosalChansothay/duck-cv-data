@@ -43,7 +43,7 @@ def evaluate_duck_model(
     model = YOLO(str(weights))
 
     print(f"\n{'='*70}")
-    print(f"📊 Step 1: Evaluating YOLO Detection Metrics (mAP)")
+    print(f" Step 1: Evaluating YOLO Detection Metrics (mAP)")
     print(f"{'='*70}")
     val_results = model.val(data=str(data_path), split=split, imgsz=imgsz)
     
@@ -53,7 +53,7 @@ def evaluate_duck_model(
     recall = float(val_results.box.mr) if hasattr(val_results.box, "mr") else 0.0
 
     print(f"\n{'='*70}")
-    print(f"🦆 Step 2: Evaluating Duck Counting Accuracy (MAE & RMSE)")
+    print(f" Step 2: Evaluating Duck Counting Accuracy (MAE & RMSE)")
     print(f"{'='*70}")
 
     root_dir = Path(".").resolve()
