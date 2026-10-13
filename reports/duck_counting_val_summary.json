@@ -1,0 +1,17 @@
+{
+  "dataset": "Objects365 v2",
+  "split": "val",
+  "category_name": "Duck",
+  "category_id": 137,
+  "total_duck_images": 1547,
+  "total_duck_instances": 12221,
+  "average_ducks_per_image": 7.9,
+  "max_ducks_in_single_image": 99,
+  "distribution": {
+    "1 duck": 125,
+    "2 ducks": 79,
+    "3-5 ducks": 422,
+    "6-10 ducks": 559,
+    "10+ ducks": 362
+  }
+}

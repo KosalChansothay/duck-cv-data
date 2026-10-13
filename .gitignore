@@ -1,0 +1,62 @@
+# ===================================================================
+# Git Ignore Rules for Duck Computer Vision Project
+# ===================================================================
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Checkpoints
+.ipynb_checkpoints/
+
+# Large Dataset Archives & Multi-Gigabyte Raw Annotations (>100MB exceeds GitHub limit)
+data/annotations/*.json
+data/annotations/*.tar.gz
+*.tar.gz
+*.zip
+*.tar
+temp_downloads/
+zhiyuan_objv2_*.json
+zhiyuan_objv2_*.tar.gz
+
+# Model Weights & Training Runs
+runs/
+*.pt
+*.pth
+*.onnx
+
+# Scratch & Inspection Outputs
+outputs/
+scratch/
+*.log
+
+# Documents & Proposals
+*.pdf
+*.docx
+*.doc
+*.pptx
+*.ppt
+

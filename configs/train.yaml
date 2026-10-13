@@ -1,0 +1,36 @@
+# ===================================================================
+# YOLO Training Configuration for Duck Counting & Detection
+# ===================================================================
+
+# Model Architecture
+model: yolo11s.pt         # Base pretrained model (options: yolo11n.pt, yolo11s.pt, yolo11m.pt, yolov8s.pt)
+data: configs/duck.yaml    # Path to dataset definition file
+
+# Hyperparameters
+epochs: 50                # Number of training epochs
+batch: 16                 # Batch size (adjust based on GPU VRAM)
+imgsz: 640                # Input image size (use 1024 or 1280 for tiny distant ducks)
+device: 0                 # GPU index (0) or 'cpu'
+workers: 4                # DataLoader workers
+
+# Training Dynamics
+optimizer: auto           # Optimizer (SGD, Adam, AdamW, or auto)
+lr0: 0.01                 # Initial learning rate
+lrf: 0.01                 # Final learning rate ratio (lr0 * lrf)
+momentum: 0.937           # SGD momentum / Adam beta1
+weight_decay: 0.0005      # Optimizer weight decay
+warmup_epochs: 3.0        # Warmup epochs
+warmup_momentum: 0.8      # Warmup initial momentum
+
+# Augmentation & Regularization
+mosaic: 1.0               # Mosaic augmentation probability (helpful for multi-duck density)
+mixup: 0.1                # Mixup augmentation
+flipud: 0.0               # Vertical flip probability
+fliplr: 0.5               # Horizontal flip probability
+
+# Logging & Checkpointing
+project: runs/train       # Project directory for logs and weights
+name: duck_counter        # Run / experiment name
+save: true                # Save train checkpoints and predict results
+save_period: 10           # Save checkpoint every N epochs (-1 to disable)
+patience: 15              # Early stopping patience (epochs without validation improvement)

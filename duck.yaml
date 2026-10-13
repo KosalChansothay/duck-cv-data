@@ -1,0 +1,10 @@
+# Ultralytics YOLO dataset configuration for Duck Counting
+# Extracted from Objects365 v2 Dataset (Category ID 137: Duck) & ImageNet
+
+path: d:/DataNLP/duck  # Dataset root directory
+train: images/val      # Training images (1,547 dense duck images / split)
+val: images/val        # Validation benchmark (1,547 dense duck images)
+
+# Classes
+names:
+  0: duck

@@ -1,0 +1,22 @@
+# ===================================================================
+# Dependencies for Duck Detection & Counting Pipeline
+# ===================================================================
+
+# Deep Learning & Object Detection
+ultralytics>=8.3.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer Vision & Data Processing
+opencv-python>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+pyyaml>=6.0
+tqdm>=4.65.0
+requests>=2.28.0
+
+# Jupyter & Notebook Tools
+ipykernel>=6.20.0
+notebook>=7.0.0
+jupyterlab>=4.0.0
