@@ -3,7 +3,6 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Ultralytics YOLO](https://img.shields.io/badge/YOLO-11%20%7C%20v8-00FFFF.svg)](https://docs.ultralytics.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Project Overview**: An automated computer vision and digital image processing pipeline for poultry flock detection, spatial distribution analysis, and density counting on smallholder duck farms.
 
