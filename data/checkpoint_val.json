@@ -1,0 +1,29 @@
+{
+  "dataset": "Objects365 v2",
+  "completed_patches": [
+    "v1_patch0",
+    "v1_patch1",
+    "v1_patch10",
+    "v1_patch11",
+    "v1_patch12",
+    "v1_patch13",
+    "v1_patch14",
+    "v1_patch15",
+    "v1_patch2",
+    "v1_patch3",
+    "v1_patch4",
+    "v1_patch5",
+    "v1_patch6",
+    "v1_patch7",
+    "v1_patch8",
+    "v1_patch9",
+    "v2_patch16",
+    "v2_patch17",
+    "v2_patch18",
+    "v2_patch19",
+    "v2_patch20"
+  ],
+  "completed_images": 712,
+  "in_progress_patch": "v2_patch21",
+  "last_updated": "2026-10-14T13:15:15Z"
+}

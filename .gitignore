@@ -60,3 +60,9 @@ scratch/
 *.pptx
 *.ppt
 
+# Extra Inspection Artifacts
+extract_imagenet_duck.ipynb
+notebooks/images/
+data/annotations/*.txt
+data/*.zip
+

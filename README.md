@@ -162,6 +162,45 @@ uv pip install -e .
 
 ---
 
+## Background Extraction & Guarded Checkpointing
+
+Extracting 1,547 high-resolution duck images across 44 patch archives requires downloading ~14 GB of data. Instead of keeping a Jupyter notebook cell open (which can disconnect if your machine sleeps), use the guarded checkpoint extractor in the background:
+
+### Method A: Run with Tmux via WSL (Recommended)
+```bash
+# 1. Create a persistent session
+wsl tmux new -s duck_extract
+
+# 2. Run the extractor with auto-resuming checkpointing
+cd /mnt/d/DataNLP/duck
+/mnt/d/DataNLP/duck/.venv/Scripts/python.exe scripts/extract_objects365.py --split val
+
+# 3. Detach and let it run in the background (close your terminal/IDE anytime!)
+# Press Ctrl+B, then release and press D
+
+# 4. Reattach anytime to monitor progress
+wsl tmux attach -t duck_extract
+```
+
+### Method B: Native Windows Background Daemon (PowerShell)
+```powershell
+# 1. Start background process with log redirection
+Start-Process -NoNewWindow -FilePath ".venv\Scripts\python.exe" -ArgumentList "scripts/extract_objects365.py --split val" -RedirectStandardOutput "logs/extract.log" -RedirectStandardError "logs/extract_err.log"
+
+# 2. Monitor live output
+Get-Content logs/extract.log -Wait -Tail 25
+```
+
+### Check Extraction Progress Dashboard
+Check real-time progress anytime without interrupting the process:
+```bash
+python scripts/extract_objects365.py --status
+```
+
+For detailed instructions on pausing, resuming, and troubleshooting, see the [Background Extraction Tutorial](docs/background_extraction_tutorial.md).
+
+---
+
 ## Running the System
 
 ### 1. Verify Dataset Integrity

@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import signal
 import shutil
 import tarfile
 from pathlib import Path
@@ -21,6 +22,75 @@ ANNOTATION_URLS = {
 DUCK_CATEGORY_ID = 137  # 'Duck' category in Objects365 v2
 
 
+class CheckpointManager:
+    """
+    Persistent, fault-tolerant checkpoint ledger for resilient batch extraction.
+    Guarantees state is preserved across interrupts (Ctrl+C, tmux detachment, reboots).
+    """
+
+    def __init__(self, checkpoint_path: Path):
+        self.path = checkpoint_path
+        self.data = self._load()
+
+    def _load(self) -> Dict[str, Any]:
+        if self.path.exists():
+            try:
+                with open(self.path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {
+            "dataset": "Objects365 v2",
+            "completed_patches": [],
+            "completed_images": 0,
+            "in_progress_patch": None,
+            "last_updated": None
+        }
+
+    def save(self):
+        """Atomically persist checkpoint state to disk."""
+        self.data["last_updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = self.path.with_suffix(".tmp")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(self.data, f, indent=2)
+        shutil.move(str(tmp_file), str(self.path))
+
+    def is_patch_completed(self, patch_key: str) -> bool:
+        return patch_key in self.data.get("completed_patches", [])
+
+    def mark_in_progress(self, patch_key: str):
+        self.data["in_progress_patch"] = patch_key
+        self.save()
+
+    def mark_completed(self, patch_key: str, extracted_count: int):
+        completed = self.data.get("completed_patches", [])
+        if patch_key not in completed:
+            completed.append(patch_key)
+        self.data["completed_patches"] = completed
+        self.data["completed_images"] = self.data.get("completed_images", 0) + extracted_count
+        self.data["in_progress_patch"] = None
+        self.save()
+
+    def sync_from_disk(self, patch_map: Dict[str, Dict[str, Any]], img_dir: Path):
+        """Scans image directory and aligns checkpoint ledger with actual files on disk."""
+        completed = []
+        total_imgs = 0
+        for p_key, info in sorted(patch_map.items()):
+            needed = info["files"]
+            present = sum(1 for f in needed if (img_dir / f).exists())
+            if present == len(needed):
+                completed.append(p_key)
+                total_imgs += present
+            elif present > 0:
+                total_imgs += present
+
+        self.data["completed_patches"] = completed
+        self.data["completed_images"] = total_imgs
+        self.data["in_progress_patch"] = None
+        self.save()
+
+
 def download_file(url: str, dest_path: Path, chunk_size: int = 1024 * 1024, max_retries: int = 10, timeout: int = 30):
     """Download a file with HTTP Range resume and auto-retry on drops."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,7 +105,7 @@ def download_file(url: str, dest_path: Path, chunk_size: int = 1024 * 1024, max_
     if dest_path.exists():
         existing_size = dest_path.stat().st_size
         if total_size > 0 and existing_size == total_size:
-            print(f"[Info] File already complete: {dest_path.name} ({existing_size / (1024*1024):.1f} MB)")
+            print(f"[Info] File already complete: {dest_path.name} ({existing_size / (1024*1024):.1f} MB)", flush=True)
             return
         elif total_size > 0 and existing_size > total_size:
             dest_path.unlink()
@@ -49,6 +119,7 @@ def download_file(url: str, dest_path: Path, chunk_size: int = 1024 * 1024, max_
         headers = {"User-Agent": "DuckExtractor/2.0"}
         if existing_size > 0:
             headers["Range"] = f"bytes={existing_size}-"
+            print(f"[Resume] Continuing from byte {existing_size:,} ({existing_size / (1024*1024):.1f} MB)...", flush=True)
 
         try:
             req = Request(url, headers=headers)
@@ -68,16 +139,16 @@ def download_file(url: str, dest_path: Path, chunk_size: int = 1024 * 1024, max_
                     if mb - last_reported_mb >= 25 or (total_size and downloaded >= total_size):
                         pct = (downloaded / total_size * 100) if total_size else 0
                         tot_mb = total_size / (1024 * 1024) if total_size else 0.0
-                        print(f"  Downloaded: {mb:.1f} / {tot_mb:.1f} MB ({pct:.1f}%)")
+                        print(f"  Downloaded: {mb:.1f} / {tot_mb:.1f} MB ({pct:.1f}%)", flush=True)
                         last_reported_mb = mb
 
             final_size = dest_path.stat().st_size
             if total_size == 0 or final_size >= total_size:
-                print(f"[Download] Finished: {dest_path.name} ({final_size / (1024*1024):.1f} MB)")
+                print(f"[Download] Finished: {dest_path.name} ({final_size / (1024*1024):.1f} MB)", flush=True)
                 return
         except Exception as e:
             retries += 1
-            print(f"\n[Warning] Connection dropped ({e}). Retrying ({retries}/{max_retries})...")
+            print(f"\n[Warning] Connection dropped ({e}). Retrying ({retries}/{max_retries})...", flush=True)
             time.sleep(3)
 
     raise ConnectionError(f"Failed to download {url} after {max_retries} retries.")
@@ -110,7 +181,10 @@ def get_patch_url(file_name: str, split: str = "val") -> Tuple[str, str]:
 
 
 class Objects365DuckExtractor:
-    """Modular extractor for Objects365 Duck dataset."""
+    """
+    Modular, guarded extractor for Objects365 Duck dataset.
+    Features persistent checkpointing, Range resume, and safe signal interruption.
+    """
 
     def __init__(self, root_dir: str | Path = "."):
         self.root_dir = Path(root_dir).resolve()
@@ -118,9 +192,29 @@ class Objects365DuckExtractor:
         self.labels_dir = self.root_dir / "labels"
         self.temp_dir = self.root_dir / "temp_downloads"
         self.annotations_dir = self.root_dir / "data" / "annotations"
-        
-        for d in [self.images_dir, self.labels_dir, self.temp_dir, self.annotations_dir]:
+        self.data_dir = self.root_dir / "data"
+
+        for d in [self.images_dir, self.labels_dir, self.temp_dir, self.annotations_dir, self.data_dir]:
             d.mkdir(parents=True, exist_ok=True)
+
+        self._setup_signal_traps()
+
+    def _setup_signal_traps(self):
+        """Handle interrupt signals gracefully and persist checkpoint state."""
+        def sig_handler(sig, frame):
+            print("\n[Guarded Checkpoint] Safe interrupt caught. Checkpoint state is persisted.", flush=True)
+            print("[Guarded Checkpoint] You can safely resume anytime via CLI or tmux.", flush=True)
+            sys.exit(0)
+
+        try:
+            signal.signal(signal.SIGINT, sig_handler)
+            if hasattr(signal, "SIGTERM"):
+                signal.signal(signal.SIGTERM, sig_handler)
+        except (ValueError, AttributeError):
+            pass
+
+    def get_checkpoint(self, split: str) -> CheckpointManager:
+        return CheckpointManager(self.data_dir / f"checkpoint_{split}.json")
 
     def find_annotation_file(self, split: str) -> Path:
         """Locate annotation file in data/annotations or root directory."""
@@ -137,31 +231,27 @@ class Objects365DuckExtractor:
         """Ensure annotation JSON file is available locally."""
         ann_file = self.find_annotation_file(split)
         if ann_file.exists():
-            print(f"[Info] Found existing annotations: {ann_file}")
+            print(f"[Info] Found existing annotations: {ann_file}", flush=True)
             return ann_file
 
         ann_url = ANNOTATION_URLS[split]
         if split == "val":
-            print(f"[Download] Fetching validation annotations...")
+            print(f"[Download] Fetching validation annotations...", flush=True)
             download_file(ann_url, ann_file)
         else:
             ann_tar = self.annotations_dir / f"zhiyuan_objv2_{split}.tar.gz"
             download_file(ann_url, ann_tar)
-            print(f"[Extract] Unpacking {ann_tar.name}...")
+            print(f"[Extract] Unpacking {ann_tar.name}...", flush=True)
             with tarfile.open(ann_tar, "r:gz") as tar:
                 tar.extractall(path=self.annotations_dir)
         return ann_file
 
     def filter_ducks(self, ann_file: Path) -> Tuple[Dict[int, Dict[str, Any]], Dict[int, List[Dict[str, Any]]]]:
-        """
-        Filter instances matching Duck category.
-        Dynamically resolves 'Duck' by name from categories list to prevent 0-index vs 1-index errors.
-        """
-        print(f"[Filter] Reading annotations from {ann_file.name}...")
+        """Filter instances matching Duck category dynamically by name."""
+        print(f"[Filter] Reading annotations from {ann_file.name}...", flush=True)
         with open(ann_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # Dynamic category resolution
         categories = data.get("categories", [])
         duck_cat = None
         duck_idx = None
@@ -173,10 +263,10 @@ class Objects365DuckExtractor:
 
         if duck_cat:
             target_cat_id = duck_cat["id"]
-            print(f"[Filter] Resolved category '{duck_cat['name']}': ID={target_cat_id} (0-indexed position={duck_idx})")
+            print(f"[Filter] Resolved category '{duck_cat['name']}': ID={target_cat_id} (0-indexed position={duck_idx})", flush=True)
         else:
             target_cat_id = DUCK_CATEGORY_ID
-            print(f"[Filter] Fallback category ID: {target_cat_id}")
+            print(f"[Filter] Fallback category ID: {target_cat_id}", flush=True)
 
         all_images = {img["id"]: img for img in data["images"]}
         duck_annotations = defaultdict(list)
@@ -186,7 +276,7 @@ class Objects365DuckExtractor:
 
         duck_images = {img_id: all_images[img_id] for img_id in duck_annotations if img_id in all_images}
         total_inst = sum(len(a) for a in duck_annotations.values())
-        print(f"[Filter] Found {len(duck_images):,} duck images ({total_inst:,} duck instances).")
+        print(f"[Filter] Found {len(duck_images):,} duck images ({total_inst:,} duck instances).", flush=True)
         return duck_images, duck_annotations
 
     def extract_images(
@@ -196,15 +286,17 @@ class Objects365DuckExtractor:
         max_patches: Optional[int] = None,
         keep_archives: bool = False
     ):
-        """Selectively extract only duck images from required patch archives using streaming iterator."""
+        """
+        Selectively extract only duck images with persistent guarded checkpointing.
+        Skips already completed patches instantly and handles resumes seamlessly.
+        """
         split_img_dir = self.images_dir / split
         split_img_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint = self.get_checkpoint(split)
 
         patch_to_images = defaultdict(dict)
         for img_id, img_info in duck_images.items():
             base_name = Path(img_info["file_name"]).name
-            if (split_img_dir / base_name).exists():
-                continue
             try:
                 patch_key, patch_url = get_patch_url(img_info["file_name"], split=split)
                 patch_to_images[patch_key]["url"] = patch_url
@@ -214,18 +306,38 @@ class Objects365DuckExtractor:
             except Exception:
                 pass
 
-        total_needed = sum(len(p["files"]) for p in patch_to_images.values())
-        print(f"[Extract] {total_needed} images need downloading across {len(patch_to_images)} patches.")
+        # Sync checkpoint ledger with current files on disk
+        checkpoint.sync_from_disk(patch_to_images, split_img_dir)
+
+        # Filter patches needing download
+        pending_patches = {}
+        for p_key, info in sorted(patch_to_images.items()):
+            needed = {f for f in info["files"] if not (split_img_dir / f).exists()}
+            if needed:
+                pending_patches[p_key] = {"url": info["url"], "files": needed, "total_files": info["files"]}
+
+        total_needed_imgs = sum(len(p["files"]) for p in pending_patches.values())
+        completed_patches_count = len(patch_to_images) - len(pending_patches)
+
+        print(f"\n[Guarded Checkpoint Status]", flush=True)
+        print(f"  • Completed Patches: {completed_patches_count}/{len(patch_to_images)} ({(completed_patches_count/len(patch_to_images)*100):.1f}%)", flush=True)
+        print(f"  • Images On Disk:    {len(list(split_img_dir.glob('*.jpg'))):,} / {len(duck_images):,}", flush=True)
+        print(f"  • Remaining Patches: {len(pending_patches)} ({total_needed_imgs} images to download)\n", flush=True)
+
+        if not pending_patches:
+            print("[Guarded Checkpoint] All patches and duck images are already extracted and verified! Nothing to do.", flush=True)
+            return
 
         processed = 0
-        for patch_key, info in sorted(patch_to_images.items()):
+        for patch_key, info in sorted(pending_patches.items()):
             if max_patches and processed >= max_patches:
-                print(f"[Extract] Reached max patches limit ({max_patches}).")
+                print(f"[Extract] Reached max patches limit ({max_patches}). Safely pausing.", flush=True)
                 break
 
             patch_url = info["url"]
             needed_files = info["files"]
             tar_name = Path(patch_url).name
+
             possible_tar_paths = [
                 self.temp_dir / f"{patch_key}.tar.gz",
                 self.temp_dir / f"{split}_{patch_key}.tar.gz",
@@ -234,11 +346,11 @@ class Objects365DuckExtractor:
             ]
             tar_path = next((p for p in possible_tar_paths if p.exists() and p.stat().st_size > 1000), possible_tar_paths[1])
 
-            print(f"\n--- [Patch {processed+1}/{len(patch_to_images)}] {patch_key} ({len(needed_files)} duck images) ---")
+            checkpoint.mark_in_progress(patch_key)
+            print(f"--- [Patch {completed_patches_count + processed + 1}/{len(patch_to_images)}] {patch_key} ({len(needed_files)} duck images needed) ---", flush=True)
             download_file(patch_url, tar_path)
 
             extracted_count = 0
-            # Use streaming generator 'for member in tar' instead of getmembers()
             with tarfile.open(tar_path, "r:gz") as tar:
                 for member in tar:
                     m_base = Path(member.name).name
@@ -247,11 +359,15 @@ class Objects365DuckExtractor:
                         tar.extract(member, path=split_img_dir)
                         extracted_count += 1
                         if extracted_count >= len(needed_files):
-                            break  # Early exit once all needed duck images in this patch are found!
+                            break
 
-            print(f"[Extract] Extracted {extracted_count}/{len(needed_files)} duck images into {split_img_dir.name}/")
+            print(f"[Extract] Extracted {extracted_count}/{len(needed_files)} duck images into {split_img_dir.name}/", flush=True)
+            checkpoint.mark_completed(patch_key, extracted_count)
+
             if not keep_archives and tar_path.exists():
                 tar_path.unlink()
+                print(f"[Cleanup] Deleted temporary archive {tar_path.name} to free disk space.", flush=True)
+
             processed += 1
 
     def run_pipeline(
@@ -261,7 +377,7 @@ class Objects365DuckExtractor:
         max_patches: Optional[int] = None,
         skip_images: bool = False
     ) -> Dict[str, Any]:
-        """Execute full extraction pipeline: download annotations -> extract images -> write YOLO labels -> summary."""
+        """Execute full extraction pipeline with guarded checkpointing."""
         ann_file = self.ensure_annotations(split)
         duck_images, duck_annotations = self.filter_ducks(ann_file)
 
@@ -269,7 +385,7 @@ class Objects365DuckExtractor:
             selected_ids = list(duck_images.keys())[:max_images]
             duck_images = {k: duck_images[k] for k in selected_ids}
             duck_annotations = {k: duck_annotations[k] for k in selected_ids}
-            print(f"[Filter] Capped extraction at {max_images:,} images.")
+            print(f"[Filter] Capped extraction at {max_images:,} images.", flush=True)
 
         if not skip_images:
             self.extract_images(duck_images, split=split, max_patches=max_patches)
@@ -289,12 +405,11 @@ class Objects365DuckExtractor:
             "distribution": density_dist
         }
 
-        # Save summary to reports/ and root
         reports_dir = self.root_dir / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         summary_file = reports_dir / f"duck_counting_{split}_summary.json"
         with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
 
-        print(f"[Done] Summary written to {summary_file}")
+        print(f"[Done] Summary written to {summary_file}", flush=True)
         return summary
